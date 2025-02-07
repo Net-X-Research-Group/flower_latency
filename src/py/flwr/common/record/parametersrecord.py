@@ -81,9 +81,11 @@ class Array:
 
     Examples
     --------
-    Initializing with a NumPy ndarray:
+    Initializing with a NumPy ndarray, PyTorch Tensor, or TensorFlow Tensor:
 
-    >>> arr1 = Array(np.random.randn(3, 3))
+    >>> arr1 = Array(np.random.randn(3, 3))     # NumPy ndarray
+    >>> arr2 = Array(torch.randn(3, 3))         # PyTorch Tensor
+    >>> arr3 = Array(tf.random.normal([3, 3]))  # TensorFlow Tensor
 
     Initializing by specifying all fields directly:
 
@@ -131,6 +133,8 @@ class Array:
         # Supported initialization formats:
         # 1. Array(dtype: str, shape: list[int], stype: str, data: bytes)
         # 2. Array(ndarray: NDArray)
+        # 3. Array(torch_tensor: torch.Tensor)
+        # 4. Array(tf_tensor: tf.Tensor)
 
         # Init all arguments
         # If more than 4 positional arguments are provided, raise an error.
