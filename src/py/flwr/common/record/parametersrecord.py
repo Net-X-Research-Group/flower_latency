@@ -21,10 +21,12 @@ import sys
 from collections import OrderedDict
 from dataclasses import dataclass
 from io import BytesIO
+from logging import WARN
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
+from ..logger import log
 from ..constant import SType
 from ..typing import NDArray
 from .typeddict import TypedDict
@@ -36,9 +38,19 @@ if TYPE_CHECKING:
 
 def _raise_array_init_error() -> None:
     raise TypeError(
-        f"Invalid arguments for {Array.__qualname__}. Expected a "
+        f"Invalid arguments for {Array.__qualname__}. Expected either a "
         "PyTorch tensor, TensorFlow tensor, NumPy ndarray, or explicit"
         " dtype/shape/stype/data values."
+    )
+
+
+def _raise_parameters_record_init_error() -> None:
+    raise TypeError(
+        f"Invalid arguments for {ParametersRecord.__qualname__}. Expected either "
+        "a list of NumPy ndarrays, a PyTorch state_dict, TensorFlow weights, "
+        "or a dictionary of Arrays. The `keep_input` argument is only supported when "
+        "passing a dictionary of Arrays, and it must be specified as a keyword "
+        "argument."
     )
 
 
@@ -378,17 +390,164 @@ class ParametersRecord(TypedDict[str, Array]):
     therefore allowing to use the same or similar steps as in the example above.
     """
 
+    @overload
+    def __init__(self) -> None: ...  # noqa: E704
+
+    @overload
+    def __init__(self, numpy_ndarrays: list[NDArray]) -> None: ...  # noqa: E704
+
+    @overload
+    def __init__(
+        self, state_dict: OrderedDict[str, torch.Tensor]
+    ) -> None: ...  # noqa: E704
+
+    @overload
+    def __init__(self, tf_weights: list[NDArray]) -> None: ...  # noqa: E704
+
+    @overload
+    def __init__(  # noqa: E704
+        self, array_dict: OrderedDict[str, Array], keep_input: bool
+    ) -> None: ...
+
     def __init__(
         self,
+        *args: Any,
+        numpy_ndarrays: list[NDArray] | None = None,
+        state_dict: OrderedDict[str, torch.Tensor] | None = None,
+        tf_weights: list[NDArray] | None = None,
         array_dict: OrderedDict[str, Array] | None = None,
-        keep_input: bool = False,
+        keep_input: bool | None = None,
     ) -> None:
         super().__init__(_check_key, _check_value)
-        if array_dict:
-            for k in list(array_dict.keys()):
-                self[k] = array_dict[k]
+
+        # Workaround to support multiple initialization signatures.
+        # This method validates and assigns the correct arguments,
+        # including keyword arguments such as numpy_ndarrays, state_dict,
+        # tf_weights, and array_dict.
+        # Supported initialization formats:
+        # 1. ParametersRecord(numpy_ndarrays: list[NDArray])
+        # 2. ParametersRecord(state_dict: dict[str, torch.Tensor])
+        # 3. ParametersRecord(tf_weights: list[NDArray])
+        # 4. ParametersRecord(array_dict: OrderedDict[str, Array], keep_input: bool)
+
+        # Init the argument
+        if len(args) > 1:
+            _raise_parameters_record_init_error()
+
+        arg = args[0] if args else None
+
+        def _try_set_arg(_arg_to_set: Any) -> None:
+            nonlocal arg
+            if _arg_to_set is None:
+                return
+            if arg is not None:
+                _raise_parameters_record_init_error()
+            arg = _arg_to_set
+
+        # Try to set keyword arguments
+        _try_set_arg(numpy_ndarrays)
+        _try_set_arg(state_dict)
+        _try_set_arg(tf_weights)
+        _try_set_arg(array_dict)
+
+        # If no arguments are provided, return and keep self empty
+        if arg is None:
+            if keep_input is not None:
+                log(WARN, "`keep_input` will be ignored. No parameters were provided.")
+            return
+
+        # Handle dictionary of Arrays
+        if isinstance(arg, dict) and all(isinstance(v, Array) for v in arg.values()):
+            if keep_input is None:
+                keep_input = False
+
+            for k in list(arg.keys()):
+                self[k] = arg[k]
                 if not keep_input:
-                    del array_dict[k]
+                    del arg[k]
+            return
+
+        # Check if keep_input is set
+        if keep_input is not None:
+            log(
+                WARN,
+                "`keep_input` will be ignored. It is only supported when "
+                "passing a dictionary of Arrays.",
+            )
+
+        # Handle NumPy ndarrays and TensorFlow weights
+        if isinstance(arg, list) and all(isinstance(v, np.ndarray) for v in arg):
+            if not arg:
+                self.__dict__.update(self.from_numpy_ndarrays(arg).__dict__)
+            return
+
+        # Handle PyTorch state_dict
+        if (
+            "torch" in sys.modules
+            and isinstance(arg, dict)
+            and all(isinstance(v, sys.modules["torch"].Tensor) for v in arg.values())
+        ):
+            arg = cast(OrderedDict[str, torch.Tensor], arg)
+            if not arg:
+                self.__dict__.update(self.from_state_dict(arg).__dict__)
+            return
+
+        _raise_parameters_record_init_error()
+
+    @classmethod
+    def from_numpy_ndarrays(
+        cls,
+        ndarrays: list[NDArray],
+    ) -> ParametersRecord:
+        """Create ParametersRecord from a list of NumPy arrays."""
+        record = ParametersRecord()
+        for i, arr in enumerate(ndarrays):
+            record[str(i)] = Array.from_numpy_ndarray(arr)
+        return record
+
+    @classmethod
+    def from_state_dict(
+        cls,
+        state_dict: OrderedDict[str, torch.Tensor],
+    ) -> ParametersRecord:
+        """Create ParametersRecord from PyTorch state_dict."""
+        if "torch" not in sys.modules:
+            raise RuntimeError(
+                f"PyTorch is required to use {cls.from_state_dict.__name__}"
+            )
+
+        record = ParametersRecord()
+        for k, v in state_dict.items():
+            record[k] = Array.from_numpy_ndarray(v.detach().cpu().numpy())
+        return record
+
+    @classmethod
+    def from_tf_weights(
+        cls,
+        tf_weights: list[NDArray],
+    ) -> ParametersRecord:
+        """Create ParametersRecord from TensorFlow weights."""
+        return cls.from_numpy_ndarrays(tf_weights)
+
+    def to_numpy_ndarrays(self) -> list[NDArray]:
+        """Return the ParametersRecord as a list of NumPy arrays."""
+        return [v.numpy() for v in self.values()]
+
+    def to_state_dict(self) -> OrderedDict[str, torch.Tensor]:
+        """Return the ParametersRecord as a PyTorch state_dict."""
+        if not (torch := sys.modules.get("torch")):
+            raise RuntimeError(
+                f"PyTorch is required to use {self.to_state_dict.__name__}"
+            )
+
+        state_dict = OrderedDict()
+        for k, v in self.items():
+            state_dict[k] = torch.from_numpy(v.numpy())
+        return state_dict
+
+    def to_tf_weights(self) -> list[NDArray]:
+        """Return the ParametersRecord as a list of TensorFlow weights."""
+        return self.to_numpy_ndarrays()
 
     def count_bytes(self) -> int:
         """Return number of Bytes stored in this object.
