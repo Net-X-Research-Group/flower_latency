@@ -379,6 +379,106 @@ class TestParametersRecord(unittest.TestCase):
         for mock_arr in mock_arrays:
             mock_arr.numpy.assert_called_once()
 
+    def test_init_no_args(self) -> None:
+        """Test initializing with no arguments."""
+        _ = ParametersRecord()
+
+    @parameterized.expand(  # type: ignore
+        [
+            ([np.array([1, 2, 3])], True),
+            ([np.array([1, 2, 3])], False),
+            ([np.array([4, 5, 6]), np.array([1, 2, 3])], True),
+            ([np.array([4, 5, 6]), np.array([1, 2, 3])], False),
+        ]
+    )
+    def test_init_ndarrays_calls_method(
+        self, ndarrays: list[NDArray], use_keyword: bool
+    ) -> None:
+        """Test initializing with NumPy arrays."""
+        with patch.object(
+            ParametersRecord,
+            "from_numpy_ndarrays",
+            return_value=Mock(spec=ParametersRecord),
+        ) as mock_from_numpy:
+            if use_keyword:
+                _ = ParametersRecord(numpy_ndarrays=ndarrays)
+            else:
+                _ = ParametersRecord(ndarrays)
+            mock_from_numpy.assert_called_once_with(ndarrays)
+
+    @parameterized.expand([(True,), (False,)])  # type: ignore
+    def test_init_array_dict_keep_input_false(self, use_keyword: bool) -> None:
+        """Test initializing with an array_dict and keep_input=False."""
+        # Prepare
+        mock_arr = Mock(spec=Array)
+        arr_dict: OrderedDict[str, Array] = OrderedDict({"x": mock_arr})
+
+        # Execute
+        if use_keyword:
+            record = ParametersRecord(array_dict=arr_dict, keep_input=False)
+        else:
+            record = ParametersRecord(arr_dict, keep_input=False)
+
+        # Assert
+        self.assertEqual(record["x"], mock_arr)
+        self.assertEqual(len(arr_dict), 0)
+
+    @parameterized.expand([(True,), (False,)])  # type: ignore
+    def test_init_array_dict_keep_input_true(self, use_keyword: bool) -> None:
+        """Test initializing with an array_dict and keep_input=True."""
+        # Prepare
+        arr_dict: OrderedDict[str, Array] = OrderedDict({"x": Mock(spec=Array)})
+
+        # Execute
+        if use_keyword:
+            record = ParametersRecord(array_dict=arr_dict, keep_input=True)
+        else:
+            record = ParametersRecord(arr_dict, keep_input=True)
+
+        # Assert
+        self.assertEqual(record["x"], arr_dict["x"])
+        self.assertEqual(len(arr_dict), 1)
+
+    @parameterized.expand([(True,), (False,)])  # type: ignore
+    def test_init_state_dict_calls_from_state_dict(self, use_keyword: bool) -> None:
+        """Test initializing with a state_dict."""
+        state_dict = OrderedDict({"layer.weight": MOCK_TORCH_TENSOR})
+        with patch.object(
+            ParametersRecord,
+            "from_state_dict",
+            return_value=Mock(spec=ParametersRecord),
+        ) as mock_from_state_dict:
+            if use_keyword:
+                _ = ParametersRecord(state_dict=state_dict)
+            else:
+                _ = ParametersRecord(state_dict)
+
+            # from_state_dict() should be called exactly once with the provided dict
+            mock_from_state_dict.assert_called_once_with(state_dict)
+
+    @parameterized.expand(  # type: ignore
+        [
+            ((42,), {}),
+            (("invalid",), {}),
+            (
+                (),
+                {"numpy_ndarrays": [np.array([2])], "tf_weights": [np.array([2])]},
+            ),
+            (([np.array([1])],), {"array_dict": {"x": Mock(spec=Array)}}),
+            (([np.array([1])],), {"numpy_ndarrays": [np.array([2])]}),
+            (([np.array([1])],), {"state_dict": {"layer.weight": MOCK_TORCH_TENSOR}}),
+            (([np.array([1])],), {"tf_weights": [np.array([2])]}),
+        ]
+    )
+    def test_init_unrecognized_arg_raises_error(
+        self, args: tuple[Any, ...], kwargs: dict[str, Any]
+    ) -> None:
+        """Test initializing with unrecognized arguments."""
+        with self.assertRaisesRegex(
+            TypeError, "Invalid arguments for ParametersRecord.*"
+        ):
+            ParametersRecord(*args, **kwargs)
+
 
 @pytest.mark.parametrize(
     "shape, dtype",
