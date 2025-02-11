@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
-from ..logger import log
 from ..constant import SType
+from ..logger import log
 from ..typing import NDArray
 from .typeddict import TypedDict
 
@@ -409,7 +409,7 @@ class ParametersRecord(TypedDict[str, Array]):
         self, array_dict: OrderedDict[str, Array], keep_input: bool
     ) -> None: ...
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         *args: Any,
         numpy_ndarrays: list[NDArray] | None = None,
@@ -458,13 +458,14 @@ class ParametersRecord(TypedDict[str, Array]):
 
         # Handle dictionary of Arrays
         if isinstance(arg, dict) and all(isinstance(v, Array) for v in arg.values()):
+            array_dict = cast(OrderedDict[str, Array], arg)
             if keep_input is None:
                 keep_input = False
 
-            for k in list(arg.keys()):
-                self[k] = arg[k]
+            for k in list(array_dict.keys()):
+                self[k] = array_dict[k]
                 if not keep_input:
-                    del arg[k]
+                    del array_dict[k]
             return
 
         # Check if keep_input is set
@@ -476,20 +477,25 @@ class ParametersRecord(TypedDict[str, Array]):
             )
 
         # Handle NumPy ndarrays and TensorFlow weights
+        # pylint: disable-next=not-an-iterable
         if isinstance(arg, list) and all(isinstance(v, np.ndarray) for v in arg):
-            if not arg:
-                self.__dict__.update(self.from_numpy_ndarrays(arg).__dict__)
+            numpy_ndarrays = cast(list[NDArray], arg)
+            # Skip updating if arg is empty
+            if numpy_ndarrays:
+                self.__dict__.update(self.from_numpy_ndarrays(numpy_ndarrays).__dict__)
             return
 
         # Handle PyTorch state_dict
         if (
-            "torch" in sys.modules
+            (torch := sys.modules.get("torch")) is not None
             and isinstance(arg, dict)
-            and all(isinstance(v, sys.modules["torch"].Tensor) for v in arg.values())
+            and all(isinstance(k, str) for k in arg)  # pylint: disable=not-an-iterable
+            and all(isinstance(v, torch.Tensor) for v in arg.values())
         ):
-            arg = cast(OrderedDict[str, torch.Tensor], arg)
-            if not arg:
-                self.__dict__.update(self.from_state_dict(arg).__dict__)
+            state_dict = cast(OrderedDict[str, torch.Tensor], arg)  # type: ignore
+            # Skip updating if arg is empty
+            if state_dict:
+                self.__dict__.update(self.from_state_dict(state_dict).__dict__)
             return
 
         _raise_parameters_record_init_error()
