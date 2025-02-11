@@ -397,9 +397,9 @@ class ParametersRecord(TypedDict[str, Array]):
     def __init__(self, numpy_ndarrays: list[NDArray]) -> None: ...  # noqa: E704
 
     @overload
-    def __init__(
+    def __init__(  # noqa: E704
         self, state_dict: OrderedDict[str, torch.Tensor]
-    ) -> None: ...  # noqa: E704
+    ) -> None: ...
 
     @overload
     def __init__(self, tf_weights: list[NDArray]) -> None: ...  # noqa: E704
