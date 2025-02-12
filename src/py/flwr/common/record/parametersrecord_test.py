@@ -163,8 +163,8 @@ class TestArray(unittest.TestCase):
 
     @parameterized.expand(  # type: ignore
         [
-            ("torch_tensor", MOCK_TORCH_TENSOR),
-            ("tf_tensor", MOCK_TF_TENSOR),
+            ({"torch_tensor": MOCK_TORCH_TENSOR},),
+            ({"tf_tensor": MOCK_TF_TENSOR},),
             ({"ndarray": np.array([1, 2, 3])},),
             ({"dtype": "float32", "shape": [2, 2], "stype": "dense", "data": b"data"},),
         ]
