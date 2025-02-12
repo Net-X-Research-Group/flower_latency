@@ -14,7 +14,7 @@
 # ==============================================================================
 """Flower client app."""
 
-
+import csv
 import multiprocessing
 import os
 import sys
@@ -435,7 +435,9 @@ def start_client_internal(
             while True:
                 try:
                     # Receive
+                    downlink_start = time.time()
                     message = receive()
+                    downlink_latency = time.time() - downlink_start
                     if message is None:
                         time.sleep(3)  # Wait for 3s before asking again
                         continue
@@ -604,7 +606,16 @@ def start_client_internal(
                         )
 
                     # Send
+                    uplink_start = time.time()
                     send(reply_message)
+                    uplink_latency = time.time() - uplink_start
+                    latency = {'round': message.metadata.group_id,
+                               'downlink_latency': downlink_latency,
+                               'uplink_latency': uplink_latency}
+                    with open(f'latency_{run_id}.csv', 'a', newline='') as f:
+                        field_names = ['round', 'downlink_latency', 'uplink_latency']
+                        writer = csv.DictWriter(f, fieldnames=field_names)
+                        writer.writerow(latency)
                     log(INFO, "Sent reply")
 
                 except RunNotRunningException:
