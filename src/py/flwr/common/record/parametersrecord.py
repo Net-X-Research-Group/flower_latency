@@ -61,8 +61,9 @@ class Array:
     Parameters
     ----------
     torch_tensor : Optional[torch.Tensor] (default: None)
-        A PyTorch tensor. If provided, the `dtype`, `shape`, `stype`, and `data` fields
-        are derived automatically from it.
+        A PyTorch tensor. If provided, it will be **detached and moved to CPU**
+        before conversion, and the `dtype`, `shape`, `stype`, and `data` fields
+        will be derived automatically from it.
 
     tf_tensor : Optional[tf.Tensor] (default: None)
         A TensorFlow tensor. If provided, the `dtype`, `shape`, `stype`, and `data`
