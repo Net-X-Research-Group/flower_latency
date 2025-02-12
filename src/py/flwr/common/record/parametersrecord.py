@@ -47,17 +47,27 @@ class Array:
     """Array type.
 
     A dataclass containing serialized data from an array-like or tensor-like object
-    along with metadata about it. The class can be initialized in one of two ways:
+    along with metadata about it. The class can be initialized in one of four ways:
 
-    1. By providing a NumPy ndarray (via the `ndarray` argument).
-    2. By specifying explicit values for `dtype`, `shape`, `stype`, and `data`.
+    1. By providing a PyTorch tensor (via the `torch_tensor` argument).
+    2. By providing a TensorFlow tensor (via the `tf_tensor` argument).
+    3. By providing a NumPy ndarray (via the `ndarray` argument).
+    4. By specifying explicit values for `dtype`, `shape`, `stype`, and `data`.
 
-    In scenarios (1), the `dtype`, `shape`, `stype`, and `data` are automatically
-    derived from the provided ndarray. In scenario (4), these fields must be
+    In scenarios (1)-(3), the `dtype`, `shape`, `stype`, and `data` are automatically
+    derived from the provided tensor or ndarray. In scenario (4), these fields must be
     specified manually.
 
     Parameters
     ----------
+    torch_tensor : Optional[torch.Tensor] (default: None)
+        A PyTorch tensor. If provided, the `dtype`, `shape`, `stype`, and `data` fields
+        are derived automatically from it.
+
+    tf_tensor : Optional[tf.Tensor] (default: None)
+        A TensorFlow tensor. If provided, the `dtype`, `shape`, `stype`, and `data`
+        fields are derived automatically from it.
+
     ndarray : Optional[NDArray] (default: None)
         A NumPy ndarray. If provided, the `dtype`, `shape`, `stype`, and `data`
         fields are derived automatically from it.
@@ -81,11 +91,20 @@ class Array:
 
     Examples
     --------
-    Initializing with a NumPy ndarray, PyTorch Tensor, or TensorFlow Tensor:
+    Initializing with a NumPy ndarray:
 
-    >>> arr1 = Array(np.random.randn(3, 3))     # NumPy ndarray
-    >>> arr2 = Array(torch.randn(3, 3))         # PyTorch Tensor
-    >>> arr3 = Array(tf.random.normal([3, 3]))  # TensorFlow Tensor
+    >>> import numpy as np
+    >>> arr1 = Array(np.random.randn(3, 3))
+
+    Initializing with a PyTorch tensor:
+
+    >>> import torch
+    >>> arr2 = Array(torch.randn(3, 3))
+
+    Initializing with a TensorFlow tensor:
+
+    >>> import tensorflow as tf
+    >>> arr3 = Array(tf.random.normal([3, 3]))
 
     Initializing by specifying all fields directly:
 
