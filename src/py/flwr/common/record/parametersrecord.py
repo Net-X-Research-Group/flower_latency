@@ -304,90 +304,76 @@ def _check_value(value: Array) -> None:
 class ParametersRecord(TypedDict[str, Array]):
     r"""Parameters record.
 
-    A dataclass storing named Arrays in order. This means that it holds entries as an
-    OrderedDict[str, Array]. ParametersRecord objects can be viewed as an equivalent to
-    PyTorch's state_dict, but holding serialised tensors instead. A
-    :code:`ParametersRecord`  is one of the types of records that a
-    `flwr.common.RecordSet <flwr.common.RecordSet.html#recordset>`_ supports and
-    can therefore be used to construct :code:`common.Message` objects.
+    A typed dictionary (string to :class:`Array`) that can store named parameters
+    (serialized tensors). Internally, this behaves similarly to an
+    `OrderedDict[str, Array]`. A `ParametersRecord` can be viewed as an
+    equivalent to PyTorch's state_dict, but it holds arrays in serialized form.
+
+    This object is one of the record types supported by :class:`RecordSet` and can
+    therefore be stored in a :class:`Message` or a :class:`Context`.
+
+    This class can be instantiated in multiple ways:
+
+    1. By providing nothing (empty container).
+    2. By providing a PyTorch state_dict (via the `state_dict` argument).
+    3. By providing TensorFlow model.get_weights() (via the `tf_weights` argument).
+    4. By providing a list of NumPy ndarrays (via the `numpy_ndarrays` argument).
+    5. By providing a dictionary of Arrays (via the `array_dict` argument).
+
+    The `keep_input` argument is only supported when passing a dictionary of Arrays.
 
     Parameters
     ----------
-    array_dict : Optional[OrderedDict[str, Array]]
-        A dictionary that stores serialized array-like or tensor-like objects.
-    keep_input : bool (default: False)
-        A boolean indicating whether parameters should be deleted from the input
-        dictionary immediately after adding them to the record. If False, the
-        dictionary passed to `set_parameters()` will be empty once exiting from that
-        function. This is the desired behaviour when working with very large
-        models/tensors/arrays. However, if you plan to continue working with your
-        parameters after adding it to the record, set this flag to True. When set
-        to True, the data is duplicated in memory.
+    numpy_ndarrays : Optional[list[NDArray]] (default: None)
+        A list of NumPy arrays. Each array will be automatically converted
+        into an :class:`Array` and stored in this record with generated keys.
+
+    state_dict : Optional[OrderedDict[str, torch.Tensor]] (default: None)
+        A PyTorch state_dict (str keys to torch.Tensor values). Each
+        tensor will be converted into an :class:`Array` and stored in this record.
+
+    tf_weights : Optional[list[NDArray]] (default: None)
+        TensorFlow model weights (which are typically NumPy ndarrays when
+        accessed via `model.get_weights()`). Each weight will be converted into
+        an :class:`Array` and stored in this record.
+
+    array_dict : Optional[OrderedDict[str, Array]] (default: None)
+        An existing dictionary containing named :class:`Array` objects. If
+        provided, these entries will be used directly to populate the record.
+
+    keep_input : Optional[bool] (default: None)
+        If `False` (default), entries in `array_dict` are removed after being added
+        to this record to free up memory. If `True`, the original `array_dict`
+        remains unchanged, preserving the data in both places at the cost of increased
+        memory usage.
 
     Examples
     --------
-    The usage of :code:`ParametersRecord` is envisioned for storing data arrays (e.g.
-    parameters of a machine learning model). These first need to be serialized into
-    a :code:`flwr.common.Array` data structure.
+    Initializing an empty ParametersRecord:
 
-    Let's see some examples:
+    >>> p_record = ParametersRecord()
+
+    Initializing with a PyTorch model state_dict:
+
+    >>> import torch.nn as nn
+    >>>
+    >>> model = nn.Linear(10, 5)
+    >>> p_record = ParametersRecord(model.state_dict())
+
+    Initializing with a TensorFlow model weights (a list of NumPy arrays):
+
+    >>> import tensorflow as tf
+    >>>
+    >>> model = tf.keras.Sequential([tf.keras.layers.Dense(5, input_shape=(10,))])
+    >>> p_record = ParametersRecord(model.get_weights())
+
+    Initializing with a list of NumPy arrays:
 
     >>> import numpy as np
-    >>> from flwr.common import ParametersRecord
     >>>
-    >>> # Let's create a simple NumPy array
-    >>> arr_np = np.random.randn(3, 3)
-    >>>
-    >>> # If we print it
-    >>> array([[-1.84242409, -1.01539537, -0.46528405],
-    >>>      [ 0.32991896,  0.55540414,  0.44085534],
-    >>>      [-0.10758364,  1.97619858, -0.37120501]])
-    >>>
-    >>> # Let's create an Array out of it
-    >>> arr = Array(arr_np)
-    >>>
-    >>> # If we print it you'll see (note the binary data)
-    >>> Array(dtype='float64', shape=[3,3], stype='numpy.ndarray', data=b'@\x99\x18...')
-    >>>
-    >>> # Adding it to a ParametersRecord:
-    >>> p_record = ParametersRecord({"my_array": arr})
-
-    Now that the NumPy array is embedded into a :code:`ParametersRecord` it could be
-    sent if added as part of a :code:`common.Message` or it could be saved as a
-    persistent state of a :code:`ClientApp` via its context. Regardless of the usecase,
-    we will sooner or later want to recover the array in its original NumPy
-    representation. For the example above, where the array was serialized using the
-    built-in utility function, deserialization can be done as follows:
-
-    >>> # Use the Array's built-in method
-    >>> arr_np_d = arr.numpy()
-    >>>
-    >>> # If printed, it will show the exact same data as above:
-    >>> array([[-1.84242409, -1.01539537, -0.46528405],
-    >>>      [ 0.32991896,  0.55540414,  0.44085534],
-    >>>      [-0.10758364,  1.97619858, -0.37120501]])
-
-    If you need finer control on how your arrays are serialized and deserialized, you
-    can construct :code:`Array` objects directly like this:
-
-    >>> from flwr.common import Array
-    >>> # Serialize your array and construct Array object
-    >>> arr = Array(
-    >>>         data=ndarray.tobytes(),
-    >>>         dtype=str(ndarray.dtype),
-    >>>         stype="",  # Could be used in a deserialization function
-    >>>         shape=list(ndarray.shape),
-    >>>       )
-    >>>
-    >>> # Then you can deserialize it like this
-    >>> arr_np_d = np.frombuffer(
-    >>>             buffer=array.data,
-    >>>             dtype=array.dtype,
-    >>>            ).reshape(array.shape)
-
-    Note that different arrays (e.g. from PyTorch, Tensorflow) might require different
-    serialization mechanism. Howerver, they often support a conversion to NumPy,
-    therefore allowing to use the same or similar steps as in the example above.
+    >>> arr1 = np.random.randn(3, 3)
+    >>> arr2 = np.random.randn(2, 2)
+    >>> p_record = ParametersRecord(numpy_ndarrays=[arr1, arr2])
     """
 
     @overload
@@ -406,7 +392,7 @@ class ParametersRecord(TypedDict[str, Array]):
 
     @overload
     def __init__(  # noqa: E704
-        self, array_dict: OrderedDict[str, Array], keep_input: bool
+        self, array_dict: OrderedDict[str, Array], *, keep_input: bool
     ) -> None: ...
 
     def __init__(  # pylint: disable=too-many-arguments
