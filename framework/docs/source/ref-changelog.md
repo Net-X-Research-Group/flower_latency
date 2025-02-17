@@ -1,5 +1,69 @@
 # Changelog
 
+## Unreleased
+
+## v1.15.2 (2025-02-17)
+
+### Thanks to our contributors
+
+We would like to give our special thanks to all the contributors who made the new version of Flower possible (in `git shortlog` order):
+
+`Charles Beauville`, `Heng Pan`, `Javier`, `Leandro Collier`, `Stephane Moroso`, `Yan Gao` <!---TOKEN_v1.15.2-->
+
+### What's new?
+
+**Free processed messages in LinkState** ([#4934](https://github.com/adap/flower/pull/4934))
+
+When the ServerApp pulls the replies the SuperNodes sent to the SuperLink, these should be removed from the LinkState. In some situations, these weren't erased, which could lead to high memory utilization by the SuperLink.
+
+**Introduce Windows CI tests** ([#4908](https://github.com/adap/flower/pull/4908))
+
+We continue improving the experience of running Flower on Windows. Now, an automated CI test is run to ensure compatibility.
+
+**Update Ray version (Simulation Engine)** ([#4926](https://github.com/adap/flower/pull/4926))
+
+The Simulation Engine has been upgraded to a version of Ray that is compatible with Python 3.12.
+
+- **Update Documentation** ([#4915](https://github.com/adap/flower/pull/4915), [#4914](https://github.com/adap/flower/pull/4914))
+
+- **Other quality improvements** ([#4935](https://github.com/adap/flower/pull/4935), [#4936](https://github.com/adap/flower/pull/4936), [#4928](https://github.com/adap/flower/pull/4928), [#4924](https://github.com/adap/flower/pull/4924), [#4939](https://github.com/adap/flower/pull/4939))
+
+## v1.15.1 (2025-02-05)
+
+### Thanks to our contributors
+
+We would like to give our special thanks to all the contributors who made the new version of Flower possible (in `git shortlog` order):
+
+`Dimitris Stripelis`, `Heng Pan`, `Javier`, `Taner Topal`, `Yan Gao` <!---TOKEN_v1.15.1-->
+
+### What's new?
+
+- **Improve time drift compensation in automatic SuperNode authentication** ([#4899](https://github.com/adap/flower/pull/4899))
+
+  In addition to allowing for a time delay (positive time difference), SuperLink now also accounts for time drift, which might result in negative time differences between timestamps in SuperLink and SuperNode during authentication.
+
+- **Rename constants for gRPC metadata** ([#4902](https://github.com/adap/flower/pull/4902))
+
+  All metadata keys in gRPC messages that previously used underscores (`_`) have been replaced with hyphens (`-`). Using underscores is not recommended in setups where SuperLink may be deployed behind load balancers or reverse proxies.
+
+- **Filtering out non-Fleet API requests at the `FleetServicer`** ([#4900](https://github.com/adap/flower/pull/4900))
+
+  The Fleet API endpoint will now reject gRPC requests that are not part of its API.
+
+- **Fix exit handlers mechanism for Windows** ([#4907](https://github.com/adap/flower/pull/4907))
+
+  The `SIGQUIT` [Python signal](https://docs.python.org/3/library/signal.html) is not supported on Windows. This signal is now excluded when Flower is executed on Windows.
+
+- **Updated Examples** ([#4895](https://github.com/adap/flower/pull/4895), [#4158](https://github.com/adap/flower/pull/4158), [#4879](https://github.com/adap/flower/pull/4879))
+
+  Examples have been updated to the latest version of Flower. Some examples have also had their dependencies upgraded. The [Federated Finetuning of a Whisper model example](https://github.com/adap/flower/tree/main/examples/whisper-federated-finetuning) has been updated to use the new Flower execution method: `flwr run`.
+
+- **Update FlowerTuneLLM Leaderboard evaluation scripts** ([#4919](https://github.com/adap/flower/pull/4910))
+
+  We have updated the package versions used in the evaluation scripts. There is still time to participate in the [Flower LLM Leaderboard](https://flower.ai/benchmarks/llm-leaderboard/)!
+
+- **Update Documentation** ([#4897](https://github.com/adap/flower/pull/4897), [#4896](https://github.com/adap/flower/pull/4896), [#4898](https://github.com/adap/flower/pull/4898), [#4909](https://github.com/adap/flower/pull/4909))
+
 ## v1.15.0 (2025-01-31)
 
 ### Thanks to our contributors
