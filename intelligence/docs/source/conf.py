@@ -1,4 +1,4 @@
-# Copyright 2023 Flower Labs GmbH. All Rights Reserved.
+# Copyright 2025 Flower Labs GmbH. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,18 +26,18 @@ import sys
 
 
 # Fixing path issue for autodoc
-sys.path.insert(0, os.path.abspath("../../"))
-sys.path.insert(0, os.path.abspath("../../flwr_datasets"))
+# sys.path.insert(0, os.path.abspath("../../"))
+sys.path.insert(0, os.path.abspath("../../py"))
 
 
 # -- Project information -----------------------------------------------------
 
-project = "Flower Datasets"
+project = "Flower Hello World"
 copyright = f"{datetime.date.today().year} Flower Labs GmbH"
 author = "The Flower Authors"
 
 # The full version, including alpha/beta/rc tags
-release = "0.5.0"
+release = "0.1.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -56,23 +56,22 @@ extensions = [
     "myst_parser",
     "sphinx_copybutton",
     "sphinx_design",
-    "sphinxcontrib.mermaid",
     "sphinx_reredirects",
     "nbsphinx",
 ]
 
 # Generate .rst files
-autosummary_generate = True
+# autosummary_generate = True
 
 # Document ONLY the objects from __all__ (present in __init__ files).
 # It will be done recursively starting from flwr_dataset.__init__
 # It's controlled in the index.rst file.
-autosummary_ignore_module_all = False
+# autosummary_ignore_module_all = False
 
 # Each class and function docs start with the path to it
 # Make the flwr_datasets.federated_dataset.FederatedDataset appear as FederatedDataset
 # The full name is still at the top of the page
-add_module_names = False
+# add_module_names = False
 
 
 def find_test_modules(package_path):
@@ -97,7 +96,7 @@ def find_test_modules(package_path):
 
 # Stop from documenting the *_test.py files.
 # That's the only way to do that in autosummary (make the modules as mock_imports).
-autodoc_mock_imports = find_test_modules(os.path.abspath("../../"))
+autodoc_mock_imports = find_test_modules(os.path.abspath("../../py"))
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -107,22 +106,16 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-# Sphinx redirects, implemented after the doc filename changes.
-# To prevent 404 errors and redirect to the new pages.
-redirects = {
-    "how-to-visualize-label-distribution": "tutorial-visualize-label-distribution.html",
-}
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = "furo"
-html_title = f"Flower Datasets {release}"
-html_logo = "_static/flower-datasets-logo.png"
+html_title = f"Flower Hello World {release}"
+html_logo = "_static/flower-logo.png"
 html_favicon = "_static/favicon.ico"
-html_baseurl = "https://flower.ai/docs/datasets/"
+html_baseurl = "https://flower.ai/docs/intelligence/"
 
 html_theme_options = {
     #

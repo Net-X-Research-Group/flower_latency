@@ -1,4 +1,4 @@
-# Copyright 2021 Flower Labs GmbH. All Rights Reserved.
+# Copyright 2025 Flower Labs GmbH. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Server-side utilities."""
+"""Event log plugin components."""
 
 
-from .tensorboard import tensorboard as tensorboard
-from .validator import validate_message as validate_message
-from .validator import validate_task_ins_or_res as validate_task_ins_or_res
+from .event_log_plugin import EventLogRequest as EventLogRequest
+from .event_log_plugin import EventLogResponse as EventLogResponse
+from .event_log_plugin import EventLogWriterPlugin as EventLogWriterPlugin
 
 __all__ = [
-    "tensorboard",
-    "validate_message",
-    "validate_task_ins_or_res",
+    "EventLogRequest",
+    "EventLogResponse",
+    "EventLogWriterPlugin",
 ]
