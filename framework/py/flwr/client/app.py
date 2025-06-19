@@ -613,7 +613,7 @@ def start_client_internal(
                     latency = {'round': message.metadata.group_id,
                                'downlink_latency': downlink_latency,
                                'uplink_latency': uplink_latency}
-                    with open(f'/app/host_home/latency_{run_id}.csv', 'a', newline='') as f:
+                    with open(f'latency_{run_id}.csv', 'a', newline='') as f:
                         field_names = ['round', 'downlink_latency', 'uplink_latency']
                         writer = csv.DictWriter(f, fieldnames=field_names)
                         writer.writerow(latency)
