@@ -392,7 +392,9 @@ def start_client_internal(
             while True:
                 try:
                     # Receive
+                    downlink_start = time.time()
                     message = receive()
+                    downlink_latency = time.time() - downlink_start
                     if message is None:
                         time.sleep(3)  # Wait for 3s before asking again
                         continue
