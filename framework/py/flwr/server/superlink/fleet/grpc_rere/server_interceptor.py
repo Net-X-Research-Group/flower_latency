@@ -111,9 +111,11 @@ class AuthenticateServerInterceptor(grpc.ServerInterceptor):  # type: ignore
 
         # Verify the timestamp
         current = now()
+        print(f"Current time: {current}")
         time_diff = current - datetime.datetime.fromisoformat(timestamp_iso)
         # Abort the RPC call if the timestamp is too old or in the future
-        if not MIN_TIMESTAMP_DIFF < time_diff.total_seconds() < MAX_TIMESTAMP_DIFF:
+        if not MIN_TIMESTAMP_DIFF < time_diff.total_seconds() < 60:
+            print(f'Invalid timestamp: min_diff={MIN_TIMESTAMP_DIFF}, time_diff={time_diff.total_seconds()}, max_diff={MAX_TIMESTAMP_DIFF}')
             return _unary_unary_rpc_terminator("Invalid timestamp")
 
         # Continue the RPC call

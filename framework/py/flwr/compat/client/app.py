@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Flower client app."""
-
-
+import csv
+import datetime
 import time
 from contextlib import AbstractContextManager
 from logging import ERROR, INFO, WARN
@@ -505,6 +505,7 @@ def start_client_internal(
 
                     # Send
                     uplink_start = time.time()
+                    print(f'Current Time is: {datetime.datetime.now()}')
                     send(reply_message)
                     uplink_latency = time.time() - uplink_start
                     latency = {'round': message.metadata.group_id,

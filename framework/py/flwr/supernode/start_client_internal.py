@@ -13,13 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Main loop for Flower SuperNode."""
-
-
+import csv
 import os
 import subprocess
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from logging import INFO, WARN
 from os import urandom
 from pathlib import Path
@@ -59,6 +59,7 @@ from flwr.supernode.servicer.clientappio import ClientAppInputs, ClientAppIoServ
 
 DEFAULT_FFS_DIR = get_flwr_dir() / "supernode" / "ffs"
 
+downlink_latency = None
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-branches
@@ -244,8 +245,17 @@ def start_client_internal(
                 # Update context in the state
                 state.store_context(context)
 
-                # Send
+                uplink_start = time.time()
+                print(f'Current Time is: {datetime.now()}')
                 send(reply_message)
+                uplink_latency = time.time() - uplink_start
+                latency = {'round': message.metadata.group_id,
+                           'downlink_latency': downlink_latency,
+                           'uplink_latency': uplink_latency}
+                with open(f'latency_{run_id}.csv', 'a', newline='') as f:
+                    field_names = ['round', 'downlink_latency', 'uplink_latency']
+                    writer = csv.DictWriter(f, fieldnames=field_names)
+                    writer.writerow(latency)
 
                 # Delete messages from the state
                 state.delete_messages(
@@ -287,8 +297,11 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
     message = None
     try:
         # Pull message
+        global downlink_latency
+        downlink_start = time.time()
         if (message := receive()) is None:
             return None
+        downlink_latency = time.time() - downlink_start
 
         # Log message reception
         log(INFO, "")
