@@ -502,7 +502,16 @@ def start_client_internal(
                         )
 
                     # Send
+                    uplink_start = time.time()
                     send(reply_message)
+                    uplink_latency = time.time() - uplink_start
+                    latency = {'round': message.metadata.group_id,
+                               'downlink_latency': downlink_latency,
+                               'uplink_latency': uplink_latency}
+                    with open(f'latency_{run_id}.csv', 'a', newline='') as f:
+                        field_names = ['round', 'downlink_latency', 'uplink_latency']
+                        writer = csv.DictWriter(f, fieldnames=field_names)
+                        writer.writerow(latency)
                     log(INFO, "Sent reply")
 
                 except RunNotRunningException:
