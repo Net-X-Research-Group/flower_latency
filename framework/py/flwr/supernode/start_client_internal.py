@@ -14,7 +14,7 @@
 # ==============================================================================
 """Main loop for Flower SuperNode."""
 
-
+import csv
 import os
 import subprocess
 import time
@@ -31,7 +31,7 @@ from grpc import RpcError
 
 from flwr.client.grpc_adapter_client.connection import grpc_adapter
 from flwr.client.grpc_rere_client.connection import grpc_request_response
-from flwr.common import GRPC_MAX_MESSAGE_LENGTH, Context, Message, RecordDict
+from flwr.common import GRPC_MAX_MESSAGE_LENGTH, Context, Message, RecordDict, MetricRecord
 from flwr.common.address import parse_address
 from flwr.common.config import get_flwr_dir, get_fused_config_from_fab
 from flwr.common.constant import (
@@ -66,6 +66,7 @@ from flwr.supernode.servicer.clientappio import ClientAppIoServicer
 
 DEFAULT_FFS_DIR = get_flwr_dir() / "supernode" / "ffs"
 
+downlink_latency = 0.0
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-branches
@@ -272,9 +273,12 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
     message = None
     try:
         # Pull message
+        global downlink_latency
+        downlink_start = time.time()
         if (recv := receive()) is None:
             return None
         message, object_tree = recv
+        downlink_latency = time.time() - downlink_start
 
         # Log message reception
         log(INFO, "")
@@ -289,9 +293,10 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
             log(INFO, "[RUN %s]", message.metadata.run_id)
         log(
             INFO,
-            "Received: %s message %s",
+            "Received: %s message %s Downlink latency: %.2f s",
             message.metadata.message_type,
             message.metadata.message_id,
+            downlink_latency
         )
 
         # Ensure the run and FAB are available
@@ -309,14 +314,27 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
 
             # Initialize the context
             run_cfg = get_fused_config_from_fab(fab.content, run_info)
+            state_dict = RecordDict()
+            downlink_m_record = MetricRecord({'downlink_latency': downlink_latency})
+            state_dict['latency'] = downlink_m_record
             run_ctx = Context(
                 run_id=run_id,
                 node_id=state.get_node_id(),
                 node_config=node_config,
-                state=RecordDict(),
+                state=state_dict,
                 run_config=run_cfg,
             )
             state.store_context(run_ctx)
+        else:
+            run_ctx = state.get_context(run_id)
+            if run_ctx:
+                if 'latency' not in run_ctx.state:
+                    run_ctx.state['latency'] = MetricRecord()
+
+                m_record = run_ctx.state['latency']
+                if isinstance(m_record, MetricRecord):
+                    m_record['downlink_latency'] = downlink_latency
+                    state.store_context(run_ctx)
 
         # Preregister the object tree of the message
         obj_ids_to_pull = object_store.preregister(run_id, object_tree)
