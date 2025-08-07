@@ -12,11 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Flower App Scheduler."""
+"""Executor for Control API."""
 
 
-from .plugin import SchedulerPlugin
+from .app import load_executor
+from .deployment import DeploymentEngine
+from .executor import Executor
+from .simulation import SimulationEngine
 
 __all__ = [
-    "SchedulerPlugin",
+    "DeploymentEngine",
+    "Executor",
+    "SimulationEngine",
+    "load_executor",
 ]
