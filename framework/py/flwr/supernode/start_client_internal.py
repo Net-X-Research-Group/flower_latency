@@ -424,6 +424,7 @@ def _push_messages(
         try:
             # Send the reply message with its ObjectTree
             # Get the IDs of objects to send
+            uplink_time = time.time()
             ids_obj_to_send = send(message, object_tree)
 
             # Push object contents from the ObjectStore
@@ -436,7 +437,19 @@ def _push_messages(
                 # lambda object_id, content: push_object(run_id, object_id, content)
                 push_object_fn=partial(push_object, run_id),
             )
+            uplink_latency = time.time() - uplink_time
             log(INFO, "Sent successfully")
+
+            run_ctx = state.get_context(run_id)
+            if run_ctx:
+                if 'latency' not in run_ctx.state:
+                    run_ctx.state['latency'] = MetricRecord()
+
+                m_record = run_ctx.state['latency']
+                if isinstance(m_record, MetricRecord):
+                    m_record['uplink_latency'] = uplink_latency
+                    state.store_context(run_ctx)
+
         except RunNotRunningException:
             log(
                 INFO,
