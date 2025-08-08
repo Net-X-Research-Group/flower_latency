@@ -343,7 +343,14 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
             obj_ids_to_pull,
             pull_object_fn=lambda obj_id: pull_object(run_id, obj_id),
         )
+
+        for obj_id in list(obj_contents.keys()):
+            object_store.put(obj_id, obj_contents.pop(obj_id))
+
+        # Confirm that the message was received
+        confirm_message_received(run_id, message.metadata.message_id)
         downlink_latency = time.time() - downlink_start
+
         run_ctx = state.get_context(run_id)
         if run_ctx:
             if 'latency' not in run_ctx.state:
@@ -353,12 +360,6 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
             if isinstance(m_record, MetricRecord):
                 m_record['downlink_latency'] = downlink_latency
                 state.store_context(run_ctx)
-
-        for obj_id in list(obj_contents.keys()):
-            object_store.put(obj_id, obj_contents.pop(obj_id))
-
-        # Confirm that the message was received
-        confirm_message_received(run_id, message.metadata.message_id)
 
     except RunNotRunningException:
         if message is None:
