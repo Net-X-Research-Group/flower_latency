@@ -273,11 +273,9 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
     try:
         # Pull message
         global downlink_latency
-        downlink_start = time.time()
         if (recv := receive()) is None:
             return None
         message, object_tree = recv
-        downlink_latency = time.time() - downlink_start
 
         # Log message reception
         log(INFO, "")
@@ -295,7 +293,6 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
             "Received: %s message %s Downlink latency: %.2f s",
             message.metadata.message_type,
             message.metadata.message_id,
-            downlink_latency
         )
 
         # Ensure the run and FAB are available
@@ -314,8 +311,7 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
             # Initialize the context
             run_cfg = get_fused_config_from_fab(fab.content, run_info)
             state_dict = RecordDict()
-            downlink_m_record = MetricRecord({'downlink_latency': downlink_latency})
-            state_dict['latency'] = downlink_m_record
+
             run_ctx = Context(
                 run_id=run_id,
                 node_id=state.get_node_id(),
@@ -341,11 +337,23 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
         # Store the message in the state (note this message has no content)
         state.store_message(message)
 
+        downlink_start = time.time()
         # Pull and store objects of the message in the ObjectStore
         obj_contents = pull_objects(
             obj_ids_to_pull,
             pull_object_fn=lambda obj_id: pull_object(run_id, obj_id),
         )
+        downlink_latency = time.time() - downlink_start
+        run_ctx = state.get_context(run_id)
+        if run_ctx:
+            if 'latency' not in run_ctx.state:
+                run_ctx.state['latency'] = MetricRecord()
+
+            m_record = run_ctx.state['latency']
+            if isinstance(m_record, MetricRecord):
+                m_record['downlink_latency'] = downlink_latency
+                state.store_context(run_ctx)
+
         for obj_id in list(obj_contents.keys()):
             object_store.put(obj_id, obj_contents.pop(obj_id))
 
