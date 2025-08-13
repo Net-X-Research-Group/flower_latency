@@ -66,6 +66,8 @@ from flwr.supernode.servicer.clientappio import ClientAppIoServicer
 
 DEFAULT_FFS_DIR = get_flwr_dir() / "supernode" / "ffs"
 
+downlink_latency = 0.0
+
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-branches
 # pylint: disable=too-many-locals
@@ -322,6 +324,7 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
 
         # Store the message in the state (note this message has no content)
         state.store_message(message)
+        global downlink_latency
         downlink_start = time.time()
         # Pull and store objects of the message in the ObjectStore
         obj_contents = pull_objects(
@@ -335,15 +338,6 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
         confirm_message_received(run_id, message.metadata.message_id)
         downlink_latency = time.time() - downlink_start
 
-        run_ctx = state.get_context(run_id)
-        if run_ctx:
-            if 'latency' not in run_ctx.state:
-                run_ctx.state['latency'] = MetricRecord()
-
-            m_record = run_ctx.state['latency']
-            if isinstance(m_record, MetricRecord):
-                m_record['downlink_latency'] = downlink_latency
-                state.store_context(run_ctx)
     except RunNotRunningException:
         if message is None:
             log(
@@ -431,15 +425,14 @@ def _push_messages(
             uplink_latency = time.time() - uplink_time
             log(INFO, "Sent successfully")
 
-            run_ctx = state.get_context(run_id)
-            if run_ctx:
-                if 'latency' not in run_ctx.state:
-                    run_ctx.state['latency'] = MetricRecord()
-
-                m_record = run_ctx.state['latency']
-                if isinstance(m_record, MetricRecord):
-                    m_record['uplink_latency'] = uplink_latency
-                    state.store_context(run_ctx)
+            # Save CSV
+            latency = {'round': message.metadata.group_id,
+                      'downlink_latency': downlink_latency,
+                      'uplink_latency': uplink_latency}
+            with open(f'/app/host_home/latency_{run_id}.csv', 'a', newline='') as f:
+                field_names = ['round', 'downlink_latency', 'uplink_latency']
+                writer = csv.DictWriter(f, fieldnames=field_names)
+                writer.writerow(latency)
 
         except RunNotRunningException:
             log(
