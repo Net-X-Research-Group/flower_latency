@@ -31,7 +31,7 @@ from grpc import RpcError
 
 from flwr.client.grpc_adapter_client.connection import grpc_adapter
 from flwr.client.grpc_rere_client.connection import grpc_request_response
-from flwr.common import GRPC_MAX_MESSAGE_LENGTH, Context, Message, RecordDict
+from flwr.common import GRPC_MAX_MESSAGE_LENGTH, Context, Message, RecordDict, MetricRecord
 from flwr.common.address import parse_address
 from flwr.common.config import get_flwr_dir, get_fused_config_from_fab
 from flwr.common.constant import (
@@ -313,6 +313,8 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
         # Store the message in the state (note this message has no content)
         state.store_message(message)
 
+        # Record downlink
+        downlink_start = time.time()
         # Pull and store objects of the message in the ObjectStore
         obj_contents = pull_objects(
             obj_ids_to_pull,
@@ -323,6 +325,16 @@ def _pull_and_store_message(  # pylint: disable=too-many-positional-arguments
 
         # Confirm that the message was received
         confirm_message_received(run_id, message.metadata.message_id)
+        downlink_latency = time.time() - downlink_start
+        run_ctx = state.get_context(run_id)
+        if run_ctx:
+            if 'latency' not in run_ctx.state:
+                run_ctx.state['latency'] = MetricRecord()
+
+            m_record = run_ctx.state['latency']
+            if isinstance(m_record, MetricRecord):
+                m_record['downlink_latency'] = downlink_latency
+                state.store_context(run_ctx)
 
     except RunNotRunningException:
         if message is None:
@@ -395,6 +407,7 @@ def _push_messages(
         try:
             # Send the reply message with its ObjectTree
             # Get the IDs of objects to send
+            uplink_time = time.time()
             ids_obj_to_send = send(message, object_tree)
 
             # Push object contents from the ObjectStore
@@ -407,7 +420,19 @@ def _push_messages(
                 # lambda object_id, content: push_object(run_id, object_id, content)
                 push_object_fn=partial(push_object, run_id),
             )
+            uplink_latency = time.time() - uplink_time
             log(INFO, "Sent successfully")
+
+            run_ctx = state.get_context(run_id)
+            if run_ctx:
+                if 'latency' not in run_ctx.state:
+                    run_ctx.state['latency'] = MetricRecord()
+
+                m_record = run_ctx.state['latency']
+                if isinstance(m_record, MetricRecord):
+                    m_record['uplink_latency'] = uplink_latency
+                    state.store_context(run_ctx)
+
         except RunNotRunningException:
             log(
                 INFO,
