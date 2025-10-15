@@ -414,12 +414,15 @@ def _push_messages(
             )
             uplink_latency = time.time() - uplink_time
             # Save CSV
-            latency = {'round': message.metadata.group_id,
-                       'downlink_latency': downlink_latency,
+            latency = {'downlink_latency': downlink_latency,
                        'uplink_latency': uplink_latency}
+            field_names = ['downlink_latency', 'uplink_latency']
+            csv_path = f'/app/host_home/latency_{run_id}.csv'
+            write_header = not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0
             with open(f'/app/host_home/latency_{run_id}.csv', 'a', newline='') as f:
-                field_names = ['round', 'downlink_latency', 'uplink_latency']
                 writer = csv.DictWriter(f, fieldnames=field_names)
+                if write_header:
+                    writer.writeheader()
                 writer.writerow(latency)
             log(INFO, "Sent successfully")
 
